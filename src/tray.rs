@@ -9,7 +9,6 @@ use crate::AppState;
 
 #[derive(Debug, Clone)]
 pub enum TrayCommand {
-    TogglePause,
     Exit,
 }
 
@@ -32,7 +31,10 @@ impl Tray for EyeFriendTray {
     }
 
     fn activate(&mut self, _x: i32, _y: i32) {
-        let _ = self.tx.send(TrayCommand::TogglePause);
+        let mut s = self.state.lock().unwrap();
+        if !s.is_notifying {
+            s.is_paused = !s.is_paused;
+        }
     }
 
     fn tool_tip(&self) -> ToolTip {
@@ -88,7 +90,10 @@ impl Tray for EyeFriendTray {
                 label: pause_label.into(),
                 enabled: true,
                 activate: Box::new(|tray: &mut Self| {
-                    let _ = tray.tx.send(TrayCommand::TogglePause);
+                    let mut s = tray.state.lock().unwrap();
+                    if !s.is_notifying {
+                        s.is_paused = !s.is_paused;
+                    }
                 }),
                 ..Default::default()
             }),

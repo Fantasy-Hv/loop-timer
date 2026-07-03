@@ -103,18 +103,10 @@ fn activate(app: &gtk::Application, state: Arc<Mutex<AppState>>, config_path: Pa
     }
 
     {
-        let state = state.clone();
         glib::timeout_add_local(Duration::from_millis(200), move || {
             while let Ok(cmd) = tray_cmd_rx.try_recv() {
-                let mut s = state.lock().unwrap();
                 match cmd {
-                    TrayCommand::TogglePause => {
-                        if !s.is_notifying {
-                            s.is_paused = !s.is_paused;
-                        }
-                    }
                     TrayCommand::Exit => {
-                        drop(s);
                         std::process::exit(0);
                     }
                 }

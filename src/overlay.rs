@@ -5,9 +5,6 @@ use std::sync::{Arc, Mutex, mpsc};
 use gtk4::prelude::*;
 use gtk4::{self as gtk, gdk, glib};
 
-use gtk4_layer_shell::LayerShell;
-use gtk4_layer_shell::{Edge, KeyboardMode, Layer};
-
 pub struct OverlayWindow {
     app: gtk::Application,
     css_loaded: Rc<RefCell<bool>>,
@@ -46,11 +43,37 @@ impl OverlayWindow {
         *self.css_loaded.borrow_mut() = true;
     }
 
+    fn monitor_geometry(&self) -> (i32, i32) {
+        let display = gdk::Display::default().unwrap();
+        let monitors = display.monitors();
+
+        let mut w = 1920;
+        let mut h = 1080;
+
+        for i in 0..monitors.n_items() {
+            if let Some(obj) = monitors.item(i) {
+                if let Ok(monitor) = obj.downcast::<gdk::Monitor>() {
+                    let geo = monitor.geometry();
+                    if geo.width() > w {
+                        w = geo.width();
+                    }
+                    if geo.height() > h {
+                        h = geo.height();
+                    }
+                }
+            }
+        }
+
+        (w, h)
+    }
+
     pub fn show(&self, text: &str) {
         self.ensure_css();
 
+        let (mw, mh) = self.monitor_geometry();
+
         let window = gtk::ApplicationWindow::new(&self.app);
-        window.set_default_size(2, 2);
+        window.set_default_size(mw, mh);
         window.set_decorated(false);
         window.set_resizable(false);
         window.add_css_class("overlay-window");
@@ -64,9 +87,10 @@ impl OverlayWindow {
         let label = gtk::Label::new(Some(text));
         label.set_justify(gtk::Justification::Center);
         label.set_wrap(true);
+        label.set_wrap_mode(gtk::pango::WrapMode::Word);
         label.add_css_class("notification-text");
 
-        let button = gtk::Button::with_label("我知道了 / Got it");
+        let button = gtk::Button::with_label("将严肃休息!");
         button.add_css_class("confirm-button");
         button.set_halign(gtk::Align::Center);
 
@@ -77,7 +101,6 @@ impl OverlayWindow {
 
         let state = self.state.clone();
         let confirm_tx = self.confirm_tx.clone();
-        let current = self.current.clone();
 
         button.connect_clicked(move |_| {
             let mut s = state.lock().unwrap();
@@ -103,19 +126,10 @@ impl OverlayWindow {
         });
         window.add_controller(key_ctrl);
 
-        window.init_layer_shell();
-        window.set_layer(Layer::Overlay);
-        window.set_keyboard_mode(KeyboardMode::Exclusive);
-
-        for e in [Edge::Top, Edge::Bottom, Edge::Left, Edge::Right] {
-            window.set_anchor(e, true);
-            window.set_margin(e, 0);
-        }
-
-        window.present();
         window.fullscreen();
+        window.present();
 
-        *current.borrow_mut() = Some(window);
+        *self.current.borrow_mut() = Some(window);
     }
 
     pub fn hide(&self) {

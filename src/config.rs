@@ -27,7 +27,7 @@ fn default_countdown() -> u64 {
 }
 
 fn default_notification_text() -> String {
-    "\u{1F441}\u{FE0F} 该休息一下眼睛了！\nTime to rest your eyes!".to_string()
+    "\u{1F441}\u{FE0F} 该休息一下眼睛了！".to_string()
 }
 
 impl Default for GeneralConfig {
