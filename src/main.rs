@@ -70,7 +70,7 @@ fn activate(app: &gtk::Application, state: Arc<Mutex<AppState>>, config_path: Pa
         tx: tray_cmd_tx,
     };
 
-    let _handle = match ksni::blocking::TrayMethods::spawn(tray) {
+    let tray_handle = match ksni::blocking::TrayMethods::spawn(tray) {
         Ok(h) => h,
         Err(e) => {
             eprintln!("loop-timer: tray service failed: {e}");
@@ -82,10 +82,13 @@ fn activate(app: &gtk::Application, state: Arc<Mutex<AppState>>, config_path: Pa
     {
         let state = state.clone();
         let overlay = overlay.clone();
+        let tray_handle = tray_handle.clone();
         glib::timeout_add_seconds_local(1, move || {
             let mut s = state.lock().unwrap();
 
             if s.is_notifying {
+                drop(s);
+                let _ = tray_handle.update(|_| {});
                 return glib::ControlFlow::Continue;
             }
 
@@ -99,8 +102,11 @@ fn activate(app: &gtk::Application, state: Arc<Mutex<AppState>>, config_path: Pa
                 let conf = s.confirm_text.clone();
                 drop(s);
                 overlay.show(&notif, &conf);
+            } else {
+                drop(s);
             }
 
+            let _ = tray_handle.update(|_| {});
             glib::ControlFlow::Continue
         });
     }
@@ -199,14 +205,17 @@ fn watch_config(state: Arc<Mutex<AppState>>, config_path: PathBuf) {
     use notify::{recommended_watcher, Event, EventKind, RecursiveMode, Watcher};
 
     let (tx, rx) = mpsc::channel::<()>();
+    let config_path_c = config_path.clone();
 
     let mut watcher = match recommended_watcher(move |res: Result<Event, notify::Error>| {
         if let Ok(event) = res {
-            match event.kind {
-                EventKind::Modify(_) | EventKind::Create(_) => {
-                    let _ = tx.send(());
+            if event.paths.iter().any(|p| p == &config_path_c) {
+                match event.kind {
+                    EventKind::Modify(_) | EventKind::Create(_) => {
+                        let _ = tx.send(());
+                    }
+                    _ => {}
                 }
-                _ => {}
             }
         }
     }) {
@@ -217,11 +226,13 @@ fn watch_config(state: Arc<Mutex<AppState>>, config_path: PathBuf) {
         }
     };
 
-    if watcher
-        .watch(&config_path, RecursiveMode::NonRecursive)
-        .is_err()
-    {
-        eprintln!("loop-timer: failed to watch config file");
+    let watch_dir = config_path
+        .parent()
+        .map(|p| p.to_path_buf())
+        .unwrap_or_else(|| PathBuf::from("."));
+
+    if watcher.watch(&watch_dir, RecursiveMode::NonRecursive).is_err() {
+        eprintln!("loop-timer: failed to watch config directory");
         return;
     }
 
@@ -237,9 +248,7 @@ fn watch_config(state: Arc<Mutex<AppState>>, config_path: PathBuf) {
                     s.confirm_text = new_cfg.notification.confirm_text.clone();
                     if new_cfg.general.countdown_seconds != s.config_countdown {
                         s.config_countdown = new_cfg.general.countdown_seconds;
-                        if !s.is_notifying && !s.is_paused {
-                            s.remaining_seconds = s.config_countdown;
-                        }
+                        s.remaining_seconds = s.config_countdown;
                     }
                 }
             }

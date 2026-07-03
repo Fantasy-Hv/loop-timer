@@ -63,12 +63,14 @@ impl Tray for LoopTimerTray {
 
         let status = if s.is_notifying {
             "\u{23F0} Time's up!".into()
-        } else if s.is_paused {
-            "\u{23F8}\u{FE0F} Paused".into()
         } else {
             let m = s.remaining_seconds / 60;
             let sec = s.remaining_seconds % 60;
-            format!("\u{23F3} {:02}:{:02}", m, sec)
+            if s.is_paused {
+                format!("\u{23F8}\u{FE0F} {:02}:{:02}", m, sec)
+            } else {
+                format!("\u{23F3} {:02}:{:02}", m, sec)
+            }
         };
 
         let pause_label = if s.is_paused {
@@ -93,6 +95,18 @@ impl Tray for LoopTimerTray {
                     let mut s = tray.state.lock().unwrap();
                     if !s.is_notifying {
                         s.is_paused = !s.is_paused;
+                    }
+                }),
+                ..Default::default()
+            }),
+            MenuItem::Standard(StandardItem {
+                label: "\u{1F504} Restart".into(),
+                enabled: true,
+                activate: Box::new(|tray: &mut Self| {
+                    let mut s = tray.state.lock().unwrap();
+                    if !s.is_notifying {
+                        s.remaining_seconds = s.config_countdown;
+                        s.is_paused = false;
                     }
                 }),
                 ..Default::default()
