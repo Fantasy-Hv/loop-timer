@@ -19,7 +19,7 @@ pub struct LoopTimerTray {
 
 impl Tray for LoopTimerTray {
     fn id(&self) -> String {
-        "loop-timer".into()
+        "rest-timer".into()
     }
 
     fn icon_name(&self) -> String {
@@ -27,7 +27,7 @@ impl Tray for LoopTimerTray {
     }
 
     fn title(&self) -> String {
-        "loop-timer".into()
+        "rest-timer".into()
     }
 
     fn activate(&mut self, _x: i32, _y: i32) {
@@ -53,7 +53,7 @@ impl Tray for LoopTimerTray {
         ToolTip {
             icon_name: String::new(),
             icon_pixmap: Vec::new(),
-            title: "loop-timer".into(),
+            title: "rest-timer".into(),
             description: desc,
         }
     }

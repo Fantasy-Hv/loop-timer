@@ -8,7 +8,24 @@
     font-weight: bold;
 }
 
+.rest-text {
+    color: #aaaaaa;
+    font-size: 48px;
+    font-weight: bold;
+}
+
 .confirm-button {
+    background: #555555;
+    color: #888888;
+    font-size: 20px;
+    font-weight: bold;
+    padding: 16px 64px;
+    border: none;
+    border-radius: 10px;
+    min-width: 240px;
+}
+
+.confirm-button-ready {
     background: #3584e4;
     color: #ffffff;
     font-size: 20px;
@@ -19,6 +36,6 @@
     min-width: 240px;
 }
 
-.confirm-button:hover {
+.confirm-button-ready:hover {
     background: #5090e8;
 }

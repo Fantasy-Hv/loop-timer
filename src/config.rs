@@ -14,6 +14,8 @@ pub struct Config {
 pub struct GeneralConfig {
     #[serde(default = "default_countdown")]
     pub countdown_seconds: u64,
+    #[serde(default = "default_rest")]
+    pub rest_seconds: u64,
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
@@ -28,6 +30,10 @@ fn default_countdown() -> u64 {
     1200
 }
 
+fn default_rest() -> u64 {
+    30
+}
+
 fn default_notification_text() -> String {
     "\u{1F441}\u{FE0F} 该休息一下眼睛了！".to_string()
 }
@@ -40,6 +46,7 @@ impl Default for GeneralConfig {
     fn default() -> Self {
         Self {
             countdown_seconds: default_countdown(),
+            rest_seconds: default_rest(),
         }
     }
 }
@@ -65,7 +72,7 @@ impl Default for Config {
 fn default_config_path() -> PathBuf {
     dirs::config_dir()
         .unwrap_or_else(|| PathBuf::from("."))
-        .join("loop-timer")
+        .join("rest-timer")
         .join("config.toml")
 }
 
@@ -85,12 +92,12 @@ pub fn load_or_create(path_arg: Option<PathBuf>) -> (Config, PathBuf) {
         Ok(contents) => match toml::from_str::<Config>(&contents) {
             Ok(cfg) => (cfg, path),
             Err(e) => {
-                eprintln!("loop-timer: config parse error: {e}. Using defaults.");
+                eprintln!("rest-timer: config parse error: {e}. Using defaults.");
                 (Config::default(), path)
             }
         },
         Err(e) => {
-            eprintln!("loop-timer: cannot read config: {e}. Using defaults.");
+            eprintln!("rest-timer: cannot read config: {e}. Using defaults.");
             (Config::default(), path)
         }
     }
@@ -101,12 +108,12 @@ pub fn reload(path: &PathBuf) -> Option<Config> {
         Ok(contents) => match toml::from_str::<Config>(&contents) {
             Ok(cfg) => Some(cfg),
             Err(e) => {
-                eprintln!("loop-timer: config reload parse error: {e}");
+                eprintln!("rest-timer: config reload parse error: {e}");
                 None
             }
         },
         Err(e) => {
-            eprintln!("loop-timer: config reload read error: {e}");
+            eprintln!("rest-timer: config reload read error: {e}");
             None
         }
     }

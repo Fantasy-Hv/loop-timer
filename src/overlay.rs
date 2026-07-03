@@ -11,6 +11,7 @@ pub struct OverlayWindow {
     state: Arc<Mutex<crate::AppState>>,
     confirm_tx: mpsc::Sender<()>,
     current: Rc<RefCell<Option<gtk::ApplicationWindow>>>,
+    rest_timer_id: Rc<RefCell<Option<glib::SourceId>>>,
 }
 
 impl OverlayWindow {
@@ -25,6 +26,7 @@ impl OverlayWindow {
             state,
             confirm_tx,
             current: Rc::new(RefCell::new(None)),
+            rest_timer_id: Rc::new(RefCell::new(None)),
         }
     }
 
@@ -90,11 +92,17 @@ impl OverlayWindow {
         label.set_wrap_mode(gtk::pango::WrapMode::Word);
         label.add_css_class("notification-text");
 
+        let rest_label = gtk::Label::new(None);
+        rest_label.set_justify(gtk::Justification::Center);
+        rest_label.add_css_class("rest-text");
+
         let button = gtk::Button::with_label(confirm_text);
         button.add_css_class("confirm-button");
         button.set_halign(gtk::Align::Center);
+        button.set_sensitive(false);
 
         vbox.append(&label);
+        vbox.append(&rest_label);
         vbox.append(&button);
 
         window.set_child(Some(&vbox));
@@ -109,22 +117,40 @@ impl OverlayWindow {
             let _ = confirm_tx.send(());
         });
 
-        let state2 = self.state.clone();
-        let confirm_tx2 = self.confirm_tx.clone();
-        let key_ctrl = gtk::EventControllerKey::new();
-        key_ctrl.connect_key_pressed(move |_, key, _, _| {
-            if key == gdk::Key::Escape
-                || key == gdk::Key::Return
-                || key == gdk::Key::KP_Enter
-            {
-                let mut s = state2.lock().unwrap();
-                s.is_notifying = false;
-                s.remaining_seconds = s.config_countdown;
-                let _ = confirm_tx2.send(());
+        let state = self.state.clone();
+        let rest_label_c = rest_label.clone();
+        let button_c = button.clone();
+        let rest_timer_id = self.rest_timer_id.clone();
+
+        let timer_id = glib::timeout_add_local(std::time::Duration::from_secs(1), move || {
+            let s = state.lock().unwrap();
+            let rest = s.rest_remaining_seconds;
+            drop(s);
+
+            if rest > 0 {
+                let m = rest / 60;
+                let sec = rest % 60;
+                rest_label_c.set_text(&format!("{:02}:{:02}", m, sec));
+                glib::ControlFlow::Continue
+            } else {
+                rest_label_c.set_text("");
+                button_c.set_sensitive(true);
+                button_c.remove_css_class("confirm-button");
+                button_c.add_css_class("confirm-button-ready");
+                *rest_timer_id.borrow_mut() = None;
+                glib::ControlFlow::Break
             }
-            glib::Propagation::Stop
         });
-        window.add_controller(key_ctrl);
+
+        *self.rest_timer_id.borrow_mut() = Some(timer_id);
+
+        {
+            let s = self.state.lock().unwrap();
+            let rest = s.rest_remaining_seconds;
+            let m = rest / 60;
+            let sec = rest % 60;
+            rest_label.set_text(&format!("{:02}:{:02}", m, sec));
+        }
 
         window.fullscreen();
         window.present();
@@ -133,6 +159,9 @@ impl OverlayWindow {
     }
 
     pub fn hide(&self) {
+        if let Some(id) = self.rest_timer_id.borrow_mut().take() {
+            id.remove();
+        }
         if let Some(window) = self.current.borrow_mut().take() {
             window.close();
         }

@@ -18,6 +18,8 @@ use tray::{LoopTimerTray, TrayCommand};
 pub struct AppState {
     pub remaining_seconds: u64,
     pub config_countdown: u64,
+    pub config_rest: u64,
+    pub rest_remaining_seconds: u64,
     pub is_paused: bool,
     pub is_notifying: bool,
     pub notification_text: String,
@@ -29,6 +31,8 @@ impl AppState {
         AppState {
             remaining_seconds: cfg.general.countdown_seconds,
             config_countdown: cfg.general.countdown_seconds,
+            config_rest: cfg.general.rest_seconds,
+            rest_remaining_seconds: 0,
             is_paused: false,
             is_notifying: false,
             notification_text: cfg.notification.text.clone(),
@@ -47,7 +51,7 @@ fn main() -> glib::ExitCode {
     let (initial_config, config_path) = load_or_create(config_path_arg);
     let state = Arc::new(Mutex::new(AppState::from_config(&initial_config)));
 
-    let app = gtk::Application::new(Some("com.loop-timer.app"), Default::default());
+    let app = gtk::Application::new(Some("com.rest-timer.app"), Default::default());
 
     let state_c = state.clone();
     let config_path_c = config_path.clone();
@@ -55,7 +59,7 @@ fn main() -> glib::ExitCode {
         activate(app, state_c.clone(), config_path_c.clone());
     });
 
-    app.run_with_args(&["loop-timer"])
+    app.run_with_args(&["rest-timer"])
 }
 
 fn activate(app: &gtk::Application, state: Arc<Mutex<AppState>>, config_path: PathBuf) {
@@ -73,7 +77,7 @@ fn activate(app: &gtk::Application, state: Arc<Mutex<AppState>>, config_path: Pa
     let tray_handle = match ksni::blocking::TrayMethods::spawn(tray) {
         Ok(h) => h,
         Err(e) => {
-            eprintln!("loop-timer: tray service failed: {e}");
+            eprintln!("rest-timer: tray service failed: {e}");
             activate_no_tray(app, state, config_path, overlay, confirm_rx);
             return;
         }
@@ -87,6 +91,9 @@ fn activate(app: &gtk::Application, state: Arc<Mutex<AppState>>, config_path: Pa
             let mut s = state.lock().unwrap();
 
             if s.is_notifying {
+                if s.rest_remaining_seconds > 0 {
+                    s.rest_remaining_seconds -= 1;
+                }
                 drop(s);
                 let _ = tray_handle.update(|_| {});
                 return glib::ControlFlow::Continue;
@@ -98,6 +105,7 @@ fn activate(app: &gtk::Application, state: Arc<Mutex<AppState>>, config_path: Pa
 
             if s.remaining_seconds == 0 && !s.is_paused {
                 s.is_notifying = true;
+                s.rest_remaining_seconds = s.config_rest;
                 let notif = s.notification_text.clone();
                 let conf = s.confirm_text.clone();
                 drop(s);
@@ -141,7 +149,7 @@ fn activate(app: &gtk::Application, state: Arc<Mutex<AppState>>, config_path: Pa
     });
 
     println!(
-        "loop-timer started (config: {})",
+        "rest-timer started (config: {})",
         config_path.display()
     );
 }
@@ -160,6 +168,9 @@ fn activate_no_tray(
             let mut s = state.lock().unwrap();
 
             if s.is_notifying {
+                if s.rest_remaining_seconds > 0 {
+                    s.rest_remaining_seconds -= 1;
+                }
                 return glib::ControlFlow::Continue;
             }
 
@@ -169,6 +180,7 @@ fn activate_no_tray(
 
             if s.remaining_seconds == 0 {
                 s.is_notifying = true;
+                s.rest_remaining_seconds = s.config_rest;
                 let notif = s.notification_text.clone();
                 let conf = s.confirm_text.clone();
                 drop(s);
@@ -196,7 +208,7 @@ fn activate_no_tray(
     });
 
     println!(
-        "loop-timer started without tray (config: {})",
+        "rest-timer started without tray (config: {})",
         config_path.display()
     );
 }
@@ -221,7 +233,7 @@ fn watch_config(state: Arc<Mutex<AppState>>, config_path: PathBuf) {
     }) {
         Ok(w) => w,
         Err(e) => {
-            eprintln!("loop-timer: cannot watch config: {e}");
+            eprintln!("rest-timer: cannot watch config: {e}");
             return;
         }
     };
@@ -232,7 +244,7 @@ fn watch_config(state: Arc<Mutex<AppState>>, config_path: PathBuf) {
         .unwrap_or_else(|| PathBuf::from("."));
 
     if watcher.watch(&watch_dir, RecursiveMode::NonRecursive).is_err() {
-        eprintln!("loop-timer: failed to watch config directory");
+        eprintln!("rest-timer: failed to watch config directory");
         return;
     }
 
@@ -250,6 +262,7 @@ fn watch_config(state: Arc<Mutex<AppState>>, config_path: PathBuf) {
                         s.config_countdown = new_cfg.general.countdown_seconds;
                         s.remaining_seconds = s.config_countdown;
                     }
+                    s.config_rest = new_cfg.general.rest_seconds;
                 }
             }
             Err(_) => break,
