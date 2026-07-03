@@ -20,6 +20,8 @@ pub struct GeneralConfig {
 pub struct NotificationConfig {
     #[serde(default = "default_notification_text")]
     pub text: String,
+    #[serde(default = "default_confirm_text")]
+    pub confirm_text: String,
 }
 
 fn default_countdown() -> u64 {
@@ -28,6 +30,10 @@ fn default_countdown() -> u64 {
 
 fn default_notification_text() -> String {
     "\u{1F441}\u{FE0F} 该休息一下眼睛了！".to_string()
+}
+
+fn default_confirm_text() -> String {
+    "我知道了 / Got it".to_string()
 }
 
 impl Default for GeneralConfig {
@@ -42,6 +48,7 @@ impl Default for NotificationConfig {
     fn default() -> Self {
         Self {
             text: default_notification_text(),
+            confirm_text: default_confirm_text(),
         }
     }
 }
@@ -58,7 +65,7 @@ impl Default for Config {
 fn default_config_path() -> PathBuf {
     dirs::config_dir()
         .unwrap_or_else(|| PathBuf::from("."))
-        .join("eye-friend")
+        .join("loop-timer")
         .join("config.toml")
 }
 
@@ -78,12 +85,12 @@ pub fn load_or_create(path_arg: Option<PathBuf>) -> (Config, PathBuf) {
         Ok(contents) => match toml::from_str::<Config>(&contents) {
             Ok(cfg) => (cfg, path),
             Err(e) => {
-                eprintln!("eye-friend: config parse error: {e}. Using defaults.");
+                eprintln!("loop-timer: config parse error: {e}. Using defaults.");
                 (Config::default(), path)
             }
         },
         Err(e) => {
-            eprintln!("eye-friend: cannot read config: {e}. Using defaults.");
+            eprintln!("loop-timer: cannot read config: {e}. Using defaults.");
             (Config::default(), path)
         }
     }
@@ -94,12 +101,12 @@ pub fn reload(path: &PathBuf) -> Option<Config> {
         Ok(contents) => match toml::from_str::<Config>(&contents) {
             Ok(cfg) => Some(cfg),
             Err(e) => {
-                eprintln!("eye-friend: config reload parse error: {e}");
+                eprintln!("loop-timer: config reload parse error: {e}");
                 None
             }
         },
         Err(e) => {
-            eprintln!("eye-friend: config reload read error: {e}");
+            eprintln!("loop-timer: config reload read error: {e}");
             None
         }
     }

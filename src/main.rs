@@ -12,7 +12,7 @@ use gtk4::{self as gtk, glib};
 
 use config::load_or_create;
 use overlay::OverlayWindow;
-use tray::{EyeFriendTray, TrayCommand};
+use tray::{LoopTimerTray, TrayCommand};
 
 #[derive(Debug)]
 pub struct AppState {
@@ -21,6 +21,7 @@ pub struct AppState {
     pub is_paused: bool,
     pub is_notifying: bool,
     pub notification_text: String,
+    pub confirm_text: String,
 }
 
 impl AppState {
@@ -31,6 +32,7 @@ impl AppState {
             is_paused: false,
             is_notifying: false,
             notification_text: cfg.notification.text.clone(),
+            confirm_text: cfg.notification.confirm_text.clone(),
         }
     }
 }
@@ -45,7 +47,7 @@ fn main() -> glib::ExitCode {
     let (initial_config, config_path) = load_or_create(config_path_arg);
     let state = Arc::new(Mutex::new(AppState::from_config(&initial_config)));
 
-    let app = gtk::Application::new(Some("com.eye-friend.app"), Default::default());
+    let app = gtk::Application::new(Some("com.loop-timer.app"), Default::default());
 
     let state_c = state.clone();
     let config_path_c = config_path.clone();
@@ -53,7 +55,7 @@ fn main() -> glib::ExitCode {
         activate(app, state_c.clone(), config_path_c.clone());
     });
 
-    app.run_with_args(&["eye-friend"])
+    app.run_with_args(&["loop-timer"])
 }
 
 fn activate(app: &gtk::Application, state: Arc<Mutex<AppState>>, config_path: PathBuf) {
@@ -63,7 +65,7 @@ fn activate(app: &gtk::Application, state: Arc<Mutex<AppState>>, config_path: Pa
 
     let (tray_cmd_tx, tray_cmd_rx) = mpsc::channel::<TrayCommand>();
 
-    let tray = EyeFriendTray {
+    let tray = LoopTimerTray {
         state: state.clone(),
         tx: tray_cmd_tx,
     };
@@ -71,7 +73,7 @@ fn activate(app: &gtk::Application, state: Arc<Mutex<AppState>>, config_path: Pa
     let _handle = match ksni::blocking::TrayMethods::spawn(tray) {
         Ok(h) => h,
         Err(e) => {
-            eprintln!("eye-friend: tray service failed: {e}");
+            eprintln!("loop-timer: tray service failed: {e}");
             activate_no_tray(app, state, config_path, overlay, confirm_rx);
             return;
         }
@@ -93,9 +95,10 @@ fn activate(app: &gtk::Application, state: Arc<Mutex<AppState>>, config_path: Pa
 
             if s.remaining_seconds == 0 && !s.is_paused {
                 s.is_notifying = true;
-                let text = s.notification_text.clone();
+                let notif = s.notification_text.clone();
+                let conf = s.confirm_text.clone();
                 drop(s);
-                overlay.show(&text);
+                overlay.show(&notif, &conf);
             }
 
             glib::ControlFlow::Continue
@@ -132,7 +135,7 @@ fn activate(app: &gtk::Application, state: Arc<Mutex<AppState>>, config_path: Pa
     });
 
     println!(
-        "eye-friend started (config: {})",
+        "loop-timer started (config: {})",
         config_path.display()
     );
 }
@@ -160,9 +163,10 @@ fn activate_no_tray(
 
             if s.remaining_seconds == 0 {
                 s.is_notifying = true;
-                let text = s.notification_text.clone();
+                let notif = s.notification_text.clone();
+                let conf = s.confirm_text.clone();
                 drop(s);
-                overlay.show(&text);
+                overlay.show(&notif, &conf);
             }
 
             glib::ControlFlow::Continue
@@ -186,7 +190,7 @@ fn activate_no_tray(
     });
 
     println!(
-        "eye-friend started without tray (config: {})",
+        "loop-timer started without tray (config: {})",
         config_path.display()
     );
 }
@@ -208,7 +212,7 @@ fn watch_config(state: Arc<Mutex<AppState>>, config_path: PathBuf) {
     }) {
         Ok(w) => w,
         Err(e) => {
-            eprintln!("eye-friend: cannot watch config: {e}");
+            eprintln!("loop-timer: cannot watch config: {e}");
             return;
         }
     };
@@ -217,7 +221,7 @@ fn watch_config(state: Arc<Mutex<AppState>>, config_path: PathBuf) {
         .watch(&config_path, RecursiveMode::NonRecursive)
         .is_err()
     {
-        eprintln!("eye-friend: failed to watch config file");
+        eprintln!("loop-timer: failed to watch config file");
         return;
     }
 
@@ -230,6 +234,7 @@ fn watch_config(state: Arc<Mutex<AppState>>, config_path: PathBuf) {
                 if let Some(new_cfg) = config::reload(&config_path) {
                     let mut s = state.lock().unwrap();
                     s.notification_text = new_cfg.notification.text.clone();
+                    s.confirm_text = new_cfg.notification.confirm_text.clone();
                     if new_cfg.general.countdown_seconds != s.config_countdown {
                         s.config_countdown = new_cfg.general.countdown_seconds;
                         if !s.is_notifying && !s.is_paused {

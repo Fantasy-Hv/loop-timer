@@ -200,18 +200,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "eye-friend"
-version = "0.1.0"
-dependencies = [
- "dirs",
- "gtk4",
- "ksni",
- "notify",
- "serde",
- "toml 0.8.23",
-]
-
-[[package]]
 name = "fastrand"
 version = "2.4.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -696,6 +684,18 @@ name = "log"
 version = "0.4.33"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0ceec5bc11778974d1bcb055b18002eba7f4b3518b6a0081b3af5f21666da9ad"
+
+[[package]]
+name = "loop-timer"
+version = "0.1.0"
+dependencies = [
+ "dirs",
+ "gtk4",
+ "ksni",
+ "notify",
+ "serde",
+ "toml 0.8.23",
+]
 
 [[package]]
 name = "memchr"

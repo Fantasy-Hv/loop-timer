@@ -12,14 +12,14 @@ pub enum TrayCommand {
     Exit,
 }
 
-pub struct EyeFriendTray {
+pub struct LoopTimerTray {
     pub state: Arc<Mutex<AppState>>,
     pub tx: mpsc::Sender<TrayCommand>,
 }
 
-impl Tray for EyeFriendTray {
+impl Tray for LoopTimerTray {
     fn id(&self) -> String {
-        "eye-friend".into()
+        "loop-timer".into()
     }
 
     fn icon_name(&self) -> String {
@@ -27,7 +27,7 @@ impl Tray for EyeFriendTray {
     }
 
     fn title(&self) -> String {
-        "eye-friend".into()
+        "loop-timer".into()
     }
 
     fn activate(&mut self, _x: i32, _y: i32) {
@@ -53,7 +53,7 @@ impl Tray for EyeFriendTray {
         ToolTip {
             icon_name: String::new(),
             icon_pixmap: Vec::new(),
-            title: "eye-friend".into(),
+            title: "loop-timer".into(),
             description: desc,
         }
     }

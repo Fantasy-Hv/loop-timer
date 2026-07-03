@@ -67,7 +67,7 @@ impl OverlayWindow {
         (w, h)
     }
 
-    pub fn show(&self, text: &str) {
+    pub fn show(&self, text: &str, confirm_text: &str) {
         self.ensure_css();
 
         let (mw, mh) = self.monitor_geometry();
@@ -90,7 +90,7 @@ impl OverlayWindow {
         label.set_wrap_mode(gtk::pango::WrapMode::Word);
         label.add_css_class("notification-text");
 
-        let button = gtk::Button::with_label("将严肃休息!");
+        let button = gtk::Button::with_label(confirm_text);
         button.add_css_class("confirm-button");
         button.set_halign(gtk::Align::Center);
 
