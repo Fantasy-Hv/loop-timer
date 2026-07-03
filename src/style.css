@@ -1,0 +1,24 @@
+.overlay-window {
+    background: rgba(0, 0, 0, 0.88);
+}
+
+.notification-text {
+    color: #ffffff;
+    font-size: 28px;
+    font-weight: bold;
+}
+
+.confirm-button {
+    background: #3584e4;
+    color: #ffffff;
+    font-size: 18px;
+    font-weight: bold;
+    padding: 14px 56px;
+    border: none;
+    border-radius: 10px;
+    min-width: 220px;
+}
+
+.confirm-button:hover {
+    background: #5090e8;
+}

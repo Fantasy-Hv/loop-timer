@@ -1,0 +1,13 @@
+[package]
+name = "eye-friend"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+gtk4 = { version = "0.11", features = ["v4_10"] }
+gtk4-layer-shell = "0.8"
+toml = "0.8"
+serde = { version = "1", features = ["derive"] }
+notify = "8"
+ksni = { version = "0.3", features = ["blocking"] }
+dirs = "6"
